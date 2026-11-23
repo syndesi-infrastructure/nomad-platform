@@ -14,8 +14,9 @@ Notable changes per version. Older history is in git.
   `cluster_reboot_requires_unlock` (default false) for nodes whose disk needs a person at boot: they are never rebooted by themselves or by `task maintenance`, only listed. `task maintenance` now
   uses the same check (`/usr/local/sbin/cluster-reboot --check`) on both OS families. `task smoke` checks the script and the nightly job on every node. Set `cluster_reboot_enabled: false` to keep the
   old behaviour (nothing reboots by itself). Full disk encryption stays outside the platform: `docs/disk-encryption.md` (the contract and the options, nothing tested).
-- **wstunnel and certificate renewal (open):** wstunnel reads its certificate once and gVisor delivers no file change notifications across sandboxes, so a renewed certificate is only used after a restart of the job.
-  A restart on renewal (a Nomad template watching a file bumped by `step ca renew --exec`) does not work: the template file sandbox only allows the task directory, not the allocation's shared directory (tested). It would need `template.disable_file_sandbox` on the clients, which is too broad.
+- **wstunnel picks up its renewed certificate:** wstunnel (reloads its certificate, key and client CA when the files change) now runs on `runc`; in gVisor it never saw the renewal of `vpn-renew` (no file change
+  notifications across sandboxes) and the VPN would have died when the 7 day certificate expired. Tested on the test cluster: a renewal (SIGHUP to `vpn-renew`) is served by wstunnel at once, the task is not restarted.
+  Apply with `task deploy:ansible` (the traefik job changes); the VPN reconnects after the restart of the allocation.
 - **Post-quantum TLS in Consul:** `tls_ecdh_curves = "X25519MLKEM768,X25519"` for the agents (`tls.defaults`) and TLS 1.3 as the minimum on `internal_rpc` and `https` (not on `grpc`: the Envoy sidecars cannot reach it then) and a `mesh` config entry with the same for the Envoy sidecars (tofu-consul).
 - **Certificate expiry alerts:** Gatus checks `[CERTIFICATE_EXPIRATION] > 96h` on the Nomad and Consul https ports of every node (group `certificates`); the existing Prometheus rule on failed Gatus endpoints sends it to ntfy. The intermediate CAs are not covered yet (`task pki:info`, `task maintenance`).
 - **Service tags are validated** before they end up in the Vector config / VRL (`metrics.path`, `metrics.scheme`, `metrics.job`) and in Gatus' YAML (host names from `traefik...rule=Host(...)` tags); values are quoted with `toJSON`.
@@ -33,7 +34,7 @@ Notable changes per version. Older history is in git.
 - **gVisor is the default docker runtime** (role `gvisor`, `docs/reference.md` "Containers in gVisor", `cluster_gvisor_*`): `runsc` is built from source by `task build` (`binaries/Dockerfile.gvisor`,
   new `.env` variables `GVISOR_VERSION` and `GVISOR_GO_COMMIT`, **add them to the `.env` of every cluster**), installed on the client nodes and registered as docker runtimes `runsc-host` (the default: gVisor on the
   network of the group's namespace, works with Connect sidecars and all firewall rules), `runsc` (own network stack, one container per namespace) and the unchanged `runc` (opt out with
-  `runtime = "runc"` in a task). Nomad's `allow_runtimes` lists them. In the platform's jobs the data stores (postgres, loki, prometheus), grafana, the wireguard task, the two dnsmasq and the
+  `runtime = "runc"` in a task). Nomad's `allow_runtimes` lists them. In the platform's jobs the data stores (postgres, loki, prometheus), grafana, the wireguard task, wstunnel, the two dnsmasq and the
   docker-socket tasks of the monitoring agent stay on runc; everything else, Envoy sidecars included, runs in a sandbox. Costs and limits (memory, process creation, `/proc/net`, Tetragon
   does not see into sandboxes) are in the reference. Jobs of your own run in gVisor with the next `nomad job run`; give databases `runtime = "runc"`. `cluster_gvisor_default_runtime: runc` keeps the old behaviour for jobs
   without a `runtime`. `task smoke` gets the section "docker runtimes".

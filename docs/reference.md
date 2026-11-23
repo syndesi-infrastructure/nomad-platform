@@ -195,7 +195,8 @@ Nomad and Consul agent certificates **never** come from step-ca (an expired one 
   7 days (`cluster_stepca_cert_hours`, `certificatesDuration`), the ACME provisioner may only issue `*.<zone>`. step-ca validates against the ingress
   node's cluster address (its own dnsmasq maps the zone there; the challenge only returns a token, the routers stay on `vpn`).
 * **wstunnel's certificate** is issued by the deploy (provisioner `services`, only the VPN name) and renewed in place by the sidecar `vpn-renew`
-  (`step ca renew --daemon`); `task maintenance` issues a new one if it expired anyway. Authelia-internal's certificate stays on the Ansible path
+  (`step ca renew --daemon`); wstunnel reloads the renewed files by itself (no restart), which needs real file change notifications: wstunnel runs on **runc** for that reason
+  (gVisor delivers none across sandboxes). `task maintenance` issues a new one if it expired anyway. Authelia-internal's certificate stays on the Ansible path
   (it runs outside a container network).
 * **Device certificates** (1 year, CN only, client auth only) are issued by `task vpn:client` through `nomad alloc exec` (provisioner `clients`, a template).
 * Backup: `task backup` streams step-ca's database (badger) out of the allocation; restore puts it back before the job starts. Without it step-ca
@@ -251,8 +252,8 @@ for `runtime = "runsc-host"`), `cluster_gvisor_enabled: false` removes gVisor fr
 | `runc` | docker's default | databases from official images without network access, `vpn` (wireguard needs netlink and the real kernel), dnsmasq (rtnetlink groups), things that read the docker socket or the host's logs (vector), grafana (see below), anything that does not run in gVisor |
 
 What decided which of the platform's own tasks stay on runc: **postgres, loki, prometheus** (data stores, i/o heavy, fed by the cluster), **grafana** (starts hundreds of threads and
-processes, with a 3 vCPU node the start took longer than the health deadline; also VPN-only and behind SSO), **vpn** (wireguard), **dnsmasq** (the two instances), **vector** and
-**docker-proxy** (docker socket, host logs). Everything else runs in a sandbox (slower to start: see the next point): authelia (both), traefik, wstunnel, vpn-renew, step-ca, ntfy, alertmanager and gatus.
+processes, with a 3 vCPU node the start took longer than the health deadline; also VPN-only and behind SSO), **vpn** (wireguard), **wstunnel** (reloads its certificate on file changes: inotify), **dnsmasq** (the two instances), **vector** and
+**docker-proxy** (docker socket, host logs). Everything else runs in a sandbox (slower to start: see the next point): authelia (both), traefik, vpn-renew, step-ca, ntfy, alertmanager and gatus.
 **The Envoy sidecars run on runc** (`sidecar_task { config { runtime = "runc" } }` in every `connect` block): Envoy is the network heavy part of a group, the image is hardened and well audited,
 and it only takes mutual TLS connections that pass the Consul intentions. Nomad has no client side setting for this, so a job of your own sets the same block on each service with a sidecar (without it
 the sidecar is a sandbox: works, but slower). The pause container of a group is a sandbox either way (it does nothing). A job of your own: the same rules (a database from an official image `runtime = "runc"`, the app that talks to the internet in a sandbox).

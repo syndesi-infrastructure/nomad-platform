@@ -572,8 +572,7 @@ EOT
         gid         = parseint(var.vpn_wstunnel_user, 10)
       }
 
-      # Known gap: wstunnel reads its certificate once and is not restarted when vpn-renew renews it (a restart of the job picks the new one up). Nomad
-      # templates can only read files in their own task directory (file sandbox), and gVisor delivers no file change notifications across sandboxes.
+      # wstunnel reloads certificate, key and client CA when the files change; that only works on runc (see runtime below).
 
       env {
         RUST_LOG        = "info"
@@ -581,6 +580,9 @@ EOT
       }
 
       config {
+        # runc, not gVisor: wstunnel reloads its certificate when the file changes (inotify), and gVisor delivers no file change notifications
+        # across sandboxes, so vpn-renew's renewal would never be noticed (the VPN would die when the 7 days are over)
+        runtime    = "runc"
         image      = var.wstunnel_image
         entrypoint = ["/home/app/wstunnel"]
         args = [
