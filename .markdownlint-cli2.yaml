@@ -14,3 +14,4 @@ globs:
   - "**/*.md"
 ignores:
   - ".git/**"
+  - "CHANGELOG.md"  # rewritten by the release workflow (ci/release.sh)
