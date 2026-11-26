@@ -4,6 +4,11 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+- **Fix: a new cluster from `cluster-template/` could not be built or deployed.** The template was still on Ubuntu after the move to Debian 13: `.env` had `UBUNTU_BUILD_VERSION=26.04`, but `task build` requires
+  `DEBIAN_BUILD_VERSION` (now `13` in the template), and `inventory/20-static.yml` declared the OS group `ubuntu` instead of `debian`, so a node added to it got no Debian variables. **Existing
+  cluster repos** that were copied from the template before this fix: set `DEBIAN_BUILD_VERSION=13` in `.env` and rename the inventory group `ubuntu` to `debian` (see 0.3.0 below). A cluster made with
+  `scripts/init-cluster.sh` from this version has both right.
+
 ## 1.0.1 (2026-11-26)
 
 - **Release script keeps the version in sync:** `ci/release.sh prepare` refuses to run when `VERSION` is not the latest `vX.Y.Z` tag, and rewrites every line marked `x-release-version` (the
