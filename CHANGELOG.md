@@ -4,6 +4,8 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+## 1.0.3 (2026-11-26)
+
 - **Fix: `nomad` and `consul` on a Debian node ignored the cluster wrappers for the ansible user.** Debian's PATH for non-root users has no `/usr/local/sbin`, so the wrappers
   (HTTPS address and CA) were skipped: `task smoke` failed with `dial tcp [::1]:8500` (consul) and `Client sent an HTTP request to an HTTPS server` (nomad), and its first check passed
   by accident. The role `cluster_tls` now writes `/etc/profile.d/cluster-cli-path.sh`, which puts `/usr/local/sbin` first in the PATH of login shells (`sh -lc`, ssh logins). Run
