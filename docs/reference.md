@@ -154,7 +154,7 @@ routers live in Traefik's file provider on the entry point `vpn`, which only exi
 (`cluster_vpn_subnet`, default `10.99.0.0/24`, the server is `.1`). In front of them is a **second Authelia** (`authelia-internal`): own cookie
 domain, secrets, database (in the shared Postgres), TOTP seeds (`authelia_internal_totp_seeds`, always separate from the public ones, `task authelia:seed` makes both), bans.
 
-```
+```text
 device --tcp/443 (SNI vpn.<cluster_domain>, mTLS)--> traefik TCP router (TLS passthrough) --> wstunnel --udp 127.0.0.1:51820--> wireguard (wg1)
 device --wg--> 10.99.n.1: tcp/443 (redirected to the vpn entry point) and udp+tcp/53 (dnsmasq: *.<zone> -> 10.99.n.1), nothing else
 ```
@@ -293,6 +293,7 @@ Nomad and Consul run with `disable_update_check` (no check for new versions and 
 (`/v1/metrics?format=prometheus`, behind the ACL; `nomad_publish_workload_metrics` for the workload ones), Consul has no `telemetry` block, and Traefik's
 Prometheus entry point is for the cluster only (`cluster_traefik_metrics`). Authelia and step-ca do not send anything either. What is left outbound
 is the packages (the update timers), the image pulls, and ACME with a public CA.
+
 * Logs: the agents keep seven days, one file per day (`cluster_log_retention_days`). Container logs are rotated by size, docker cannot do days:
   seven files of 50 MB per container (`cluster_docker_log_max_files`, `cluster_docker_log_max_size`). Metrics are not handled.
 * `no-new-privileges` is set as the daemon default; a job opts out with `security_opt = ["no-new-privileges=false"]`.

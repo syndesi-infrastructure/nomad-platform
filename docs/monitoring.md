@@ -3,7 +3,7 @@
 Every cluster gets a small monitoring stack by default (`cluster_monitoring_enabled`, set it to `false` for none). It is built to be looked at and extended, not to
 come with finished dashboards: **no dashboards are deployed**, the data sources are.
 
-```
+```text
  every client node                                the monitoring node (cluster_monitoring_node)
 ┌────────────────────────────┐   Consul mesh     ┌─────────────────────────────────────────────────────────┐
 │ Vector (monitoring-agent)  │──── logs ────────▶│ Loki          (logs, 45 days)                           │
@@ -174,7 +174,7 @@ Trusting a forward-auth header instead would not do: any container reaches Grafa
 
 ## Operating it
 
-```
+```text
 nomad job status monitoring-server          # one allocation, eight tasks (two of them are the mesh sidecars)
 nomad alloc logs -task grafana <alloc>      # or look at it in Loki: {job="monitoring-server", task="grafana"}
 task backup                                 # includes a pg_dump of Grafana's database (dashboards, folders, alert rules)

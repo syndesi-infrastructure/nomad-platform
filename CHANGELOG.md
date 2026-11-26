@@ -2,7 +2,13 @@
 
 Notable changes per version. Older history is in git.
 
-## 0.3.0 (unreleased)
+## Unreleased
+
+- **CI on GitHub Actions (no deployments, no self-hosted runners):** `.github/workflows/ci.yml` runs yamllint, markdownlint, actionlint, shellcheck, `tofu fmt`/`validate`, tflint,
+  `nomad fmt`, ansible-lint and (informational) a trivy config scan. Every check is a task of the new root `Taskfile.yml` (`task ci:lint`, `task ci:lint:<check>`) that runs a pinned
+  docker image, so it works the same on a laptop; nothing was added to the cluster tools image. `release.yml` is a button: choose patch, minor or major and it bumps `VERSION`, closes
+  the `## Unreleased` section of this file, pushes a signed commit and tag and creates the GitHub release (`ci/release.sh`). The changelog heading `0.3.0 (unreleased)` is now
+  `Unreleased`. Fixed on the way: a few code fences without a language, a missing `---` in four Taskfiles, a shellcheck source directive in `node-bootstrap.sh`.
 
 - **Debian 13 replaces Ubuntu (breaking):** the nodes run **Debian 13 (trixie)** or the latest Alpine; Ubuntu is no longer supported (Debian 13 has the NVIDIA drivers and ships OpenSSH 10.0 and OpenSSL 3.5, so
   `mlkem768x25519-sha256` and X25519MLKEM768 work, checked on the `debian:trixie` image). **Migrate:** the inventory group `ubuntu` is `debian`

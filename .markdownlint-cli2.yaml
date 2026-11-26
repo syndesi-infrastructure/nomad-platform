@@ -1,0 +1,16 @@
+---
+# markdownlint-cli2 (task ci:lint:markdown)
+config:
+  default: true
+  MD013: false  # long lines: the docs are written one paragraph per line
+  MD033: false  # inline html
+  MD041: false  # first line need not be a heading
+  MD004: false  # list marker style: the docs mix * and -
+  MD060: false  # table pipe spacing
+  MD036: false  # bold lead-ins as labels (CLAUDE.md)
+  MD010:
+    code_blocks: false  # a tab inside an /etc/network/interfaces example
+globs:
+  - "**/*.md"
+ignores:
+  - ".git/**"

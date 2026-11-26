@@ -1,0 +1,92 @@
+---
+name: Release
+
+# Press "Run workflow" on main and choose patch, minor or major: the checks run, VERSION and CHANGELOG.md are bumped, the commit and the
+# tag are signed and pushed, and a GitHub release is created from the changelog section. Nothing is built or deployed: clusters pin the tag.
+# Secrets (as in the ember-nexus repos): RELEASE_TOKEN (PAT of the bot account, may push to main), GPG_PRIVATE_KEY, PASSPHRASE.
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: "Release type"
+        type: choice
+        required: true
+        options: [patch, minor, major]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Checks
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: checks
+    steps:
+      - name: Only from main
+        if: github.ref != 'refs/heads/main'
+        run: echo "::error::releases are made from main (selected ${{ github.ref }})" && exit 1
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.48.0
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_tag_gpgsign: true
+
+      - name: Git configuration
+        env:
+          GPG_EMAIL: ${{ steps.import-gpg.outputs.email }}
+          GPG_NAME: ${{ steps.import-gpg.outputs.name }}
+        run: |
+          git config --global user.email "$GPG_EMAIL"
+          git config --global user.name "$GPG_NAME"
+
+      - name: Bump version and changelog
+        id: bump
+        env:
+          RELEASE_TYPE: ${{ inputs.release-type }}
+        run: |
+          task ci:release:prepare -- "$RELEASE_TYPE"
+          echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Release notes
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: task ci:release:notes -- "$VERSION" > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Commit, tag and push
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git add VERSION CHANGELOG.md
+          git commit -m "chore: release v$VERSION"
+          git tag -m "v$VERSION" "v$VERSION"
+          git push --atomic origin HEAD "refs/tags/v$VERSION"
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: gh release create "v$VERSION" --title "v$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md" --verify-tag

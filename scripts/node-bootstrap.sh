@@ -18,6 +18,7 @@ shift
 # random password nobody knows: some systems refuse key logins for locked accounts
 randpw() { head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 
+# shellcheck source=/dev/null
 . /etc/os-release
 case "$ID" in
   alpine)

@@ -1,3 +1,4 @@
+---
 # The tools container of a cluster. The image is the same for every cluster (tag = tool versions), the container
 # is per cluster because the cluster repo is mounted at /work (the base repo is its submodule /work/base).
 # Used from the cluster repo with COMPOSE_FILE=base/tools/compose.yml[:compose.override.yml] (cluster .env), so

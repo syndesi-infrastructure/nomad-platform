@@ -1,0 +1,114 @@
+---
+version: "3"
+
+# CI tasks of this repo: the same commands run locally and in GitHub Actions (.github/workflows/ci.yml calls these tasks).
+# Everything runs in pinned docker images, nothing is installed on the host and nothing is added to the cluster tools image.
+# NOT the platform's tasks: those are in tasks/Taskfile.yml and run from a cluster repo (see CLAUDE.md).
+
+vars:
+  UID:
+    sh: id -u
+  GID:
+    sh: id -g
+  # image pins: tags only, verified to exist on their registries (no digests, no latest)
+  YAMLLINT_VERSION: "1.38.0"
+  ANSIBLE_LINT_VERSION: "26.11.1"
+  PYTHON_IMAGE: python:3.13-alpine
+  MARKDOWNLINT_IMAGE: davidanson/markdownlint-cli2:v0.24.2
+  ACTIONLINT_IMAGE: rhysd/actionlint:1.7.12
+  SHELLCHECK_IMAGE: koalaman/shellcheck:v0.11.0
+  TOFU_IMAGE: ghcr.io/opentofu/opentofu:1.13.9
+  TFLINT_IMAGE: ghcr.io/terraform-linters/tflint:v0.66.0
+  # the version of nomad the cluster template pins; only used for `nomad fmt`
+  NOMAD_IMAGE: hashicorp/nomad:2.1.1
+  TRIVY_IMAGE: aquasec/trivy:0.76.2
+  # one container: files of the repo mounted at /work, the host user, a writable HOME
+  RUN: docker run --rm -u {{.UID}}:{{.GID}} -e HOME=/tmp -v "{{.ROOT_DIR}}":/work -w /work
+
+tasks:
+  default:
+    cmds: [task --list]
+    silent: true
+
+  ci:lint:
+    desc: Every check that CI runs (except trivy, see ci:lint:trivy); runs them all and lists the failed ones
+    cmds:
+      - |
+        failed=""
+        for t in yaml markdown actions shell tofu tflint nomad ansible; do
+          echo "=== ci:lint:$t"
+          task "ci:lint:$t" || failed="$failed $t"
+        done
+        if [ -n "$failed" ]; then echo "FAILED:$failed"; exit 1; fi
+        echo "all checks passed"
+
+  ci:lint:yaml:
+    desc: yamllint (config ansible/.yamllint.yml) on every yaml file of the repo
+    cmds:
+      - >-
+        {{.RUN}} {{.PYTHON_IMAGE}} sh -c
+        'pip install --quiet --disable-pip-version-check --user yamllint=={{.YAMLLINT_VERSION}}
+        && /tmp/.local/bin/yamllint --strict -c ansible/.yamllint.yml .'
+
+  ci:lint:markdown:
+    desc: markdownlint (config .markdownlint-cli2.yaml)
+    cmds:
+      - "{{.RUN}} {{.MARKDOWNLINT_IMAGE}}"
+
+  ci:lint:actions:
+    desc: actionlint on the workflows in .github/ (shellcheck of the run steps included)
+    cmds:
+      - "{{.RUN}} {{.ACTIONLINT_IMAGE}} -color"
+
+  ci:lint:shell:
+    desc: shellcheck on every shell script of the repo
+    cmds:
+      - "{{.RUN}} {{.SHELLCHECK_IMAGE}} -x -P SCRIPTDIR scripts/*.sh dev/*.sh dev/remote/*.sh ci/*.sh binaries/*.sh tools/entrypoint.sh"
+
+  ci:lint:tofu:
+    desc: tofu fmt -check and tofu validate of both roots (without the backend, like scripts/lint.sh)
+    cmds:
+      - "{{.RUN}} {{.TOFU_IMAGE}} fmt -check -diff -recursive tofu"
+      - for: [tofu-consul, tofu-nomad]
+        cmd: >-
+          {{.RUN}} -e TF_DATA_DIR=/tmp/tf-{{.ITEM}} --entrypoint sh {{.TOFU_IMAGE}} -c
+          'tofu -chdir=tofu/{{.ITEM}} init -backend=false -input=false -no-color >/dev/null
+          && tofu -chdir=tofu/{{.ITEM}} validate -no-color'
+
+  ci:lint:tflint:
+    desc: tflint (the built-in terraform ruleset) on both tofu roots
+    cmds:
+      - for: [tofu-consul, tofu-nomad]
+        cmd: "{{.RUN}} {{.TFLINT_IMAGE}} --chdir=tofu/{{.ITEM}}"
+
+  ci:lint:nomad:
+    desc: "nomad fmt -check on the job files and the test jobs (nomad job validate needs the deploy variables, so it is not run)"
+    cmds:
+      - "{{.RUN}} --entrypoint nomad {{.NOMAD_IMAGE}} fmt -check -recursive jobs tests"
+
+  ci:lint:ansible:
+    desc: ansible-lint on the playbooks and roles (installs ansible-lint and the collections on every run, about a minute; works on a copy, the repo is mounted read-only)
+    cmds:
+      - >-
+        docker run --rm -v "{{.ROOT_DIR}}":/repo:ro -w /tmp {{.PYTHON_IMAGE}} sh -c
+        'apk add --quiet git && pip install --quiet --disable-pip-version-check ansible-lint=={{.ANSIBLE_LINT_VERSION}}
+        && cp -r /repo/ansible /tmp/ansible && cd /tmp/ansible
+        && export ANSIBLE_COLLECTIONS_PATH=/tmp/collections ANSIBLE_ROLES_PATH=/tmp/roles
+        && ansible-galaxy install -r requirements.yml >/dev/null && ansible-lint --nocolor playbooks roles'
+
+  ci:lint:trivy:
+    desc: trivy config scan (misconfigurations in the tofu code and the Dockerfiles), informational, CI does not fail on it
+    cmds:
+      - >-
+        {{.RUN}} -e TRIVY_CACHE_DIR=/tmp/trivy {{.TRIVY_IMAGE}}
+        config --severity HIGH,CRITICAL --exit-code 1 .
+
+  ci:release:prepare:
+    desc: "Bump VERSION and turn the changelog's Unreleased section into the new version (nothing is committed): task ci:release:prepare -- patch|minor|major"
+    cmds:
+      - ci/release.sh prepare {{.CLI_ARGS}}
+
+  ci:release:notes:
+    desc: "The changelog section of one version, as GitHub release notes: task ci:release:notes -- 0.14.0"
+    cmds:
+      - ci/release.sh notes {{.CLI_ARGS}}

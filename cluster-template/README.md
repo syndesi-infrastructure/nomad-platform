@@ -114,7 +114,7 @@ systemctl restart systemd-networkd; ip -br a show cluster0
 
 Alpine (`/etc/network/interfaces`; tested on 3.24): append
 
-```
+```text
 auto cluster0
 iface cluster0 inet static
 	address 10.200.0.1/24

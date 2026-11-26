@@ -58,7 +58,7 @@ Variables are namespaced in Nomad, so the variables of a project's jobs are sepa
 A token is created once and stays. It is replaced only when the project is removed from `cluster_projects`, when the tofu state is lost (a rebuilt
 cluster restored with `task restore` brings the old tokens back with the snapshot; a rebuild *without* the matching state mints new ones), or on purpose:
 
-```
+```text
 task project:rotate -- nextcloud     # marks the tokens; the old ones stop working with the next deploy
 task deploy:ansible
 task project:export -- nextcloud ... # and update every place that holds them
@@ -76,7 +76,7 @@ The tokens live in the encrypted tofu state (`state/tofu-nomad`, `state/tofu-con
 
 The **bundle** is a tar with one directory, `<name>-<cluster>/`:
 
-```
+```text
 nomad.token  [consul.token]        the secrets
 connect.sh  disconnect.sh          VPN up / down without installing anything (below)
 connect.env  ca.pem                parameters, the cluster root CA
@@ -96,7 +96,7 @@ the single files into its secret store directly; the store encrypts it and masks
 Anything outside the cluster (a GitHub or Forgejo runner, a server of a third party) reaches the Nomad and Consul API through the same VPN as the admin
 devices: WireGuard over wstunnel on tcp/443 (`docs/reference.md`, "Internal services behind a VPN"). A project gets its own device:
 
-```
+```text
 task project:vpn -- nextcloud      # key pair, preshared key, address in the project half, certificate (1 year), files in secrets/vpn/project-nextcloud/
 task deploy:ansible                # the server learns the peer
 task project:export -- nextcloud --age age1...
@@ -135,7 +135,7 @@ No installation, no systemd, no resolver changes. `connect.sh` starts wstunnel i
 to the VPN server address only), writes `nomad-api.<zone>` and `consul-api.<zone>` into `/etc/hosts`, checks the whole way (`/v1/status/leader` through
 the tunnel) and sets
 
-```
+```text
 NOMAD_ADDR=https://nomad-api.<zone>      NOMAD_CACERT=<dir>/ca.pem      NOMAD_TOKEN=...
 CONSUL_HTTP_ADDR=https://consul-api.<zone>   CONSUL_CACERT=...         CONSUL_HTTP_TOKEN=...   (only with a consul token)
 ```
@@ -183,7 +183,7 @@ privileged container runner, not an unprivileged container.
 A webhook listener or a redeploy script that **runs in the cluster needs no VPN**: it talks to Nomad directly and only needs a token. Put the token(s) into
 a Nomad variable that only that job reads; the platform does not know about it and does not need to:
 
-```
+```text
 nomad var put -namespace=hooks nomad/jobs/webhook \
     nextcloud="$(task project:token -- nextcloud)" outline="$(task project:token -- outline)"
 ```

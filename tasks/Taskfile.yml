@@ -1,3 +1,4 @@
+---
 version: "3"
 
 # Included by the Taskfile of a cluster repo (flatten: true), so `task deploy:ansible` etc. work from there.

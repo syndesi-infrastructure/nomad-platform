@@ -1,0 +1,41 @@
+---
+name: CI
+
+# Every check is a task of the Taskfile.yml in the repo root (task ci:lint:<name>), so it runs the same way locally. No deployments.
+on:
+  push:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: "Lint: ${{ matrix.check }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [yaml, markdown, actions, shell, tofu, tflint, nomad, ansible]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.48.0
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task ci:lint:${{ matrix.check }}
+
+  trivy:
+    # misconfiguration scan: reported, but it does not fail the run or block a release
+    name: "Scan: trivy (informational)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.48.0
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task ci:lint:trivy

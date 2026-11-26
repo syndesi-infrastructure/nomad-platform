@@ -24,7 +24,7 @@ encrypted state. All tooling runs in one container per cluster, so the machine y
 
 ## The repos
 
-```
+```text
 nomad-platform/          this repo, versioned by tags. No cluster data.
   cluster-template/      a bare cluster repo: copy it to start a new cluster
 my-cluster/              a cluster repo (yours, private): inventory, variables, encrypted secrets and states
@@ -73,7 +73,7 @@ interactive questions (`task authelia:user`, `task proxy:login`).
 | [docs/reference.md](docs/reference.md) | network, tokens, firewall, privilege escalation, docker volumes, logs, wireguard, backup and restore, extending |
 | [docs/projects.md](docs/projects.md) | scoped Nomad / Consul tokens and VPN devices for CI and third party apps: define, export, use |
 | [docs/contract.md](docs/contract.md) | what a cluster repo must contain, every variable, inventory groups, extension points |
-| [CHANGELOG.md](CHANGELOG.md) | what changed per version |
+| [CHANGELOG.md](CHANGELOG.md) | what changed per version (releases: Actions > Release, see CLAUDE.md "CI"; checks locally: `task ci:lint`) |
 | [CLAUDE.md](CLAUDE.md) | working on this repo against a test cluster (also for humans): the loop, `dev/` tools, failure modes, shell pitfalls |
 
 ## Known issues and open items

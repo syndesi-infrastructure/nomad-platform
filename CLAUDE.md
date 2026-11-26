@@ -5,8 +5,9 @@ product, this file describes how to work on it without wasting time.
 
 ## The setup in one minute
 
-- **This repo has no Taskfile, no inventory, no tools container.** It is the shared code (roles, jobs, scripts). Nothing runs from here.
-  `task ...` here fails with `No Taskfile found`.
+- **This repo has no inventory and no tools container.** It is the shared code (roles, jobs, scripts). Nothing of the platform runs from here. The one
+  `Taskfile.yml` in the root has only the CI tasks (`task ci:lint`, one `task ci:lint:<check>` per check, `task ci:release:prepare`), see "CI" below;
+  every other task (`deploy:*`, `smoke`, `dev:*`, `lint`) fails here with `No Taskfile found`/`task not found`: use the test cluster.
 - **Everything runs from the test cluster: `cd ../incusos-test-cluster`** (author's setup; two incus VMs `itc-alpine` = server+ingress+client+
   monitoring, `itc-debian` = client; domain `itc.test`; its README has the test-only credentials). Its `base/` is a **copy** of this working tree.
 - **Tools live in the cluster's tools container** (`itc-tools`): ansible, tofu, sops, yamllint, shellcheck, step. They are NOT on the host. "command not found:
@@ -88,7 +89,7 @@ shows up in `/proc`, in Tetragon's events and so in Loki).
 | VM shows old memory/cpu after `deploy:tofu` | incus applies limits at restart | `incus restart itc-alpine`, then `dev:wait` |
 | `tofu`/`ansible` ... `EOF`, connection dropped during `deploy:*` | nodes rate-limit ssh (10/min, burst 10) when the tofu state tunnel opens many connections | rerun; do not run two deploys or loops of ssh in parallel |
 | `--limit` run fails with connection refused / missing tokens | `localhost` missing from the limit | `--limit <node>,localhost` |
-| `task: No Taskfile found` | you are in `nomad-platform` | `cd ../incusos-test-cluster` |
+| `task: No Taskfile found` / `task: Task "deploy:ansible" does not exist` | you are in `nomad-platform` (its Taskfile has only `ci:*`) | `cd ../incusos-test-cluster` |
 | a hand edit on a node broke the service (consul down) | `sed -i` recreates the file with the editing user's owner/mode | edit with `cp -p backup`, `cat > file`, or `sed -i` then `chown --reference`; always keep a backup and restore it after the experiment |
 | `sqlite3`/`jq`/`nslookup` "not found" on a node or in a container | not installed on that OS / busybox variant (alpine vs debian differ) | check both nodes; smoke checks must work on both |
 | `ansible ... -a '... {{.Names}} ...'` fails with templating errors | ansible parses `{{ }}` in `-a` strings | use `dev:x` (no ansible in the path) or `docker ... --format` via a script on stdin |
@@ -115,6 +116,7 @@ GNU tools). One command often crosses all three: that is where the quoting accid
 ## Things about this platform that cost time (read before touching these areas)
 
 **Nomad / jobs**
+
 - Job files are plain HCL2. `file("${var.templates_dir}/...")` runs on the machine running `nomad job run` (and the directory `/etc/cluster/jobs` is `0700`
   root); the `template` sandbox of a task only allows paths inside the allocation dir (a host path or `/alloc/...` in `file()` fails).
 - Nomad renders templates as root, mode 0600: for a non-root task set `uid`/`gid` on the `template`, and mind that `secrets/` is created root-owned.
@@ -153,6 +155,18 @@ A replaced node leaves a stale member behind (`consul force-leave -prune <old>`,
 - Security hardening is the theme of this repo; but "operator risk" decisions by the user (no secret rotation task, TOTP files, single Authelia instance, deployer token) are
   settled: do not reopen them, do not "fix" them on the side.
 - Say what is verified and what is not ("parse-checked only", "not deployed"). Reports in the sessions that did this were appreciated; claims that turned out wrong were not.
+
+## CI (GitHub Actions, `.github/workflows/`)
+
+- `ci.yml` (every push, and called by the release): one job per `task ci:lint:<check>` (yaml, markdown, actions, shell, tofu, tflint, nomad, ansible) plus `trivy`
+  (informational, `continue-on-error`). **The tasks are the only definition of a check**: run the same `task ci:lint` (or one check) locally before pushing, from the root
+  of this repo. They run in pinned docker images (versions at the top of `Taskfile.yml`: tags only, check that a tag exists), nothing goes into the cluster tools image,
+  and `task lint` of the test cluster stays the deeper local check (it needs the inventory). New check: a task in `Taskfile.yml`, a matrix entry in `ci.yml`.
+- `release.yml` (button: Actions > Release > run on main, choose patch/minor/major): checks, then `ci/release.sh prepare` (bumps `VERSION`, turns `## Unreleased` of
+  `CHANGELOG.md` into `## x.y.z (date)` and leaves a new empty `## Unreleased` on top; **an empty Unreleased section stops the release**), a signed commit and signed
+  tag `vX.Y.Z` pushed with the bot's PAT, and a GitHub release with the changelog section as notes. Secrets: `RELEASE_TOKEN`, `GPG_PRIVATE_KEY`, `PASSPHRASE`.
+  So every behaviour change writes its changelog entry under `## Unreleased`. Try the bump locally on a clean tree and undo it with `git checkout VERSION CHANGELOG.md`.
+- No self-hosted runners and no test deployments in CI (decided: the test cluster is local).
 
 ## The dev tooling (`dev/`)
 

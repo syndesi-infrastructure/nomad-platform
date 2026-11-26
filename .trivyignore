@@ -1,0 +1,3 @@
+# DS-0002 (no USER in the Dockerfile): binaries/ builds nomad, consul and runsc and tools/ is the operator's tooling container;
+# neither runs as a service on a node, and the tools container needs root for ssh/ansible/sops state
+DS-0002
