@@ -4,6 +4,11 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+- **Fix: `nomad` and `consul` on a Debian node ignored the cluster wrappers for the ansible user.** Debian's PATH for non-root users has no `/usr/local/sbin`, so the wrappers
+  (HTTPS address and CA) were skipped: `task smoke` failed with `dial tcp [::1]:8500` (consul) and `Client sent an HTTP request to an HTTPS server` (nomad), and its first check passed
+  by accident. The role `cluster_tls` now writes `/etc/profile.d/cluster-cli-path.sh`, which puts `/usr/local/sbin` first in the PATH of login shells (`sh -lc`, ssh logins). Run
+  `task deploy:ansible` (or `task node -- <node>`) on existing Debian nodes. Not tested.
+
 ## 1.0.2 (2026-11-26)
 
 - **Fix: a new cluster from `cluster-template/` could not be built or deployed.** The template was still on Ubuntu after the move to Debian 13: `.env` had `UBUNTU_BUILD_VERSION=26.04`, but `task build` requires

@@ -226,7 +226,10 @@
 
 # The cli reads only environment variables. A profile.d file is only seen by login shells (not by
 # `incus exec`, the web terminal, su, cron), so instead the cli is wrapped: /usr/local/sbin comes
-# before /usr/local/bin in PATH on both distros, the real binary stays where the services run it.
+# before /usr/local/bin in PATH on Alpine and for root, the real binary stays where the services run it.
+# Debian's PATH for a non-root user has no /usr/local/sbin at all (`/usr/local/bin:/usr/bin:/bin:...`), so the wrappers
+# would be skipped for the ansible user (smoke: `consul` on http://localhost:8500, `nomad` on http instead of https):
+# a profile.d file puts the directory first for login shells (`sh -lc`, ssh logins), which is what the scripts use.
 # Only address + CA are defaulted (public data); tokens are never baked in, and a variable that is
 # already set (e.g. NOMAD_ADDR) wins.
 - name: /usr/local/sbin exists (alpine has no such directory by default)
@@ -234,6 +237,19 @@
     path: /usr/local/sbin
     state: directory
     mode: "0755"
+
+- name: /usr/local/sbin comes first in PATH of login shells (Debian leaves it out for non-root users)
+  ansible.builtin.copy:
+    dest: /etc/profile.d/cluster-cli-path.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # managed by ansible (role cluster_tls): the nomad / consul wrappers in /usr/local/sbin must win over /usr/local/bin
+      case ":${PATH}:" in
+        ":/usr/local/sbin:"*) ;;
+        *) PATH="/usr/local/sbin:${PATH}"; export PATH ;;
+      esac
 
 - name: cli wrappers with the cluster address and CA
   ansible.builtin.copy:
