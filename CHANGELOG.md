@@ -4,6 +4,8 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+## 0.13.1 (2026-11-26)
+
 - **CI on GitHub Actions (no deployments, no self-hosted runners):** `.github/workflows/ci.yml` runs yamllint, markdownlint, actionlint, shellcheck, `tofu fmt`/`validate`, tflint,
   `nomad fmt`, ansible-lint and (informational) a trivy config scan. Every check is a task of the new root `Taskfile.yml` (`task ci:lint`, `task ci:lint:<check>`) that runs a pinned
   docker image, so it works the same on a laptop; nothing was added to the cluster tools image. `release.yml` is a button: choose patch, minor or major and it bumps `VERSION`, closes
