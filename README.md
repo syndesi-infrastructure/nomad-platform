@@ -49,7 +49,7 @@ cluster repo, and **its README is the guide**: [cluster-template/README.md](clus
 4. **Deploy:** `task build`, `task deploy:ansible`, `task smoke`.
 5. Add the TOTP registration (`secrets/authelia/totp-<name>.txt`) to your authenticator app, point DNS at the ingress node, sign in.
 
-Pin the platform to a release with `git -C base checkout v1.0.1`. <!-- x-release-version -->
+Pin the platform to a release with `git -C base checkout v1.0.2`. <!-- x-release-version -->
 Updating the platform later: `task upgrade -- <tag>` (shows the changelog, stages the new submodule pointer).
 
 ## What your machine needs
