@@ -35,7 +35,7 @@ my-cluster/              a cluster repo (yours, private): inventory, variables, 
 
 ```sh
 cp -r nomad-platform/cluster-template ~/clusters/my-cluster && cd ~/clusters/my-cluster
-git init -b main && git submodule add <url of nomad-platform> base     # or a local path
+git init -b main && git submodule add https://github.com/syndesi-infrastructure/nomad-platform.git base     # or a local path
 ```
 
 (`base/scripts/init-cluster.sh <dir> <name> <domain>` does the same and fills in the name and domain.) Then everything happens in the
@@ -49,6 +49,7 @@ cluster repo, and **its README is the guide**: [cluster-template/README.md](clus
 4. **Deploy:** `task build`, `task deploy:ansible`, `task smoke`.
 5. Add the TOTP registration (`secrets/authelia/totp-<name>.txt`) to your authenticator app, point DNS at the ingress node, sign in.
 
+Pin the platform to a release with `git -C base checkout v1.0.0`. <!-- x-release-version -->
 Updating the platform later: `task upgrade -- <tag>` (shows the changelog, stages the new submodule pointer).
 
 ## What your machine needs

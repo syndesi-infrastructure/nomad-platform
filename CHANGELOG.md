@@ -4,6 +4,10 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+- **Release script keeps the version in sync:** `ci/release.sh prepare` refuses to run when `VERSION` is not the latest `vX.Y.Z` tag, and rewrites every line marked `x-release-version` (the
+  "pin a release" examples in the READMEs and the `task upgrade` example) with sed; `task ci:lint:version` (a CI check) fails when a marked line names another version than `VERSION`.
+  The platform's repository moved to `https://github.com/syndesi-infrastructure/nomad-platform`: the READMEs show that URL, and `scripts/init-cluster.sh` falls back to it when the checkout has no `origin`.
+
 ## 1.0.0 (2026-11-26)
 ### Changed
 - Release 1.0.0.

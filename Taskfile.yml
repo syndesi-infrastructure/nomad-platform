@@ -35,7 +35,7 @@ tasks:
     cmds:
       - |
         failed=""
-        for t in yaml markdown actions shell tofu tflint nomad ansible; do
+        for t in yaml markdown actions shell tofu tflint nomad ansible version; do
           echo "=== ci:lint:$t"
           task "ci:lint:$t" || failed="$failed $t"
         done
@@ -95,6 +95,11 @@ tasks:
         && cp -r /repo/ansible /tmp/ansible && cd /tmp/ansible
         && export ANSIBLE_COLLECTIONS_PATH=/tmp/collections ANSIBLE_ROLES_PATH=/tmp/roles
         && ansible-galaxy install -r requirements.yml >/dev/null && ansible-lint --nocolor playbooks roles'
+
+  ci:lint:version:
+    desc: Every line marked x-release-version (examples that name the released version) says the version in VERSION
+    cmds:
+      - ci/release.sh check
 
   ci:lint:trivy:
     desc: trivy config scan (misconfigurations in the tofu code and the Dockerfiles), informational, CI does not fail on it

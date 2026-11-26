@@ -9,8 +9,10 @@ Delete this paragraph and describe your cluster here.
 ```sh
 cp -r nomad-platform/cluster-template ~/clusters/my-cluster && cd ~/clusters/my-cluster
 git init -b main
-git submodule add <url or path of nomad-platform> base     # pin a release: git -C base checkout <tag>
+git submodule add https://github.com/syndesi-infrastructure/nomad-platform.git base     # or the path of a local checkout
 ```
+
+Pin a release with `git -C base checkout v1.0.0`. <!-- x-release-version -->
 
 Or: `nomad-platform/scripts/init-cluster.sh ~/clusters/my-cluster my-cluster example.org` (copies the template, replaces the
 placeholders, creates the repo and the submodule). A local path as submodule url needs

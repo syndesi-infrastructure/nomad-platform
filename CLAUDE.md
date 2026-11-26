@@ -165,7 +165,7 @@ A replaced node leaves a stale member behind (`consul force-leave -prune <old>`,
 - `release.yml` (button: Actions > Release > run on main, choose patch/minor/major): checks, then `ci/release.sh prepare` (bumps `VERSION`, turns `## Unreleased` of
   `CHANGELOG.md` into `## x.y.z (date)` and leaves a new empty `## Unreleased` on top; **an empty Unreleased section stops the release**), a signed commit and signed
   tag `vX.Y.Z` pushed with the bot's PAT, and a GitHub release with the changelog section as notes. Secrets: `RELEASE_TOKEN`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`.
-  So every behaviour change writes its changelog entry under `## Unreleased`. Try the bump locally on a clean tree and undo it with `git checkout VERSION CHANGELOG.md`.
+  So every behaviour change writes its changelog entry under `## Unreleased`. Examples that name the current release carry the marker `x-release-version` on their line (html comment in markdown, yaml comment in a Taskfile): the release rewrites them with sed, `task ci:lint:version` checks them; do not write a literal version into docs anywhere else without it. Try the bump locally on a clean tree and undo it with `git checkout VERSION CHANGELOG.md`.
 - No self-hosted runners and no test deployments in CI (decided: the test cluster is local).
 
 ## The dev tooling (`dev/`)

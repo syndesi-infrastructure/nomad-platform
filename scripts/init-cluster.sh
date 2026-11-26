@@ -3,14 +3,15 @@
 #   init-cluster.sh <target dir> <cluster name> <domain> [platform repo url]
 # The same as copying cluster-template/ by hand, then `git init`, `git submodule add <platform> base` and replacing the
 # placeholders `example` / `example.org` with the name and the domain. The target becomes a git repo with the platform
-# as submodule `base/` (default source: this repo's origin, or this checkout when it has none). It deploys nothing, see
+# as submodule `base/` (default source: this checkout's origin, or the public repo when it has none). It deploys nothing, see
 # the README of the new repo.
 set -euo pipefail
 target=${1:?target directory}
 name=${2:?cluster name, e.g. home}
 domain=${3:?base domain, e.g. home.example.org}
 here=$(cd "$(dirname "$0")/.." && pwd)
-url=${4:-$(git -C "$here" remote get-url origin 2>/dev/null || echo "$here")}
+default_url=https://github.com/syndesi-infrastructure/nomad-platform.git
+url=${4:-$(git -C "$here" remote get-url origin 2>/dev/null || echo "$default_url")}
 [ ! -e "$target" ] || { echo "$target exists" >&2; exit 1; }
 
 mkdir -p "$target"
