@@ -3,6 +3,8 @@
 Notable changes per version. Older history is in git.
 
 ## Unreleased
+### Changed
+- Release 1.0.0.
 
 ## 0.13.1 (2026-11-26)
 
