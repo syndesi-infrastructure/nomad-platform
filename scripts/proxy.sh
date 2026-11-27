@@ -30,6 +30,20 @@ dc() { docker compose -f "$dir/compose.yml" -p "$(basename "$PWD")-proxy" "$@"; 
 domain() { echo "${PROXY_DOMAIN:-$(tools 'cvar cluster_internal_zone')}"; }
 upstream() { echo "${PROXY_UPSTREAM:-$(tools 'cvar cluster_vpn_server_ip'):443}"; }
 
+# Everything goes through the VPN: without it the proxy answers 502 with an empty body. Check the way to traefik first, so that the error says what is wrong.
+vpn_reachable() {
+  local up host port
+  up=$(upstream); host=${up%:*}; port=${up##*:}
+  [ -n "$host" ] && timeout 3 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$host" "$port" 2>/dev/null
+}
+vpn_hint() {
+  local c
+  c=$(tools 'cvar cluster_name' 2>/dev/null) || c=""
+  echo "cannot reach $(upstream): the VPN is probably not up. Start it: sudo wg-quick up wg-${c:-<cluster_name>} (check: sudo wg show, resolvectl query nomad.$(domain))"
+}
+# first line of a curl -D header file -> status code (empty if there is none)
+http_code() { sed -nE '1s/^HTTP\/[0-9.]+ ([0-9]+).*/\1/p' "$1" | head -1; }
+
 render() {
   local d up up_n up_c up_a ca=""
   d=$(domain); [ -n "$d" ] || die "cannot find cluster_internal_zone (is the tools container up? task up)"
@@ -112,6 +126,7 @@ login() {
   local d user pw code target auth hdr cookie fresh body
   for t in jq curl; do command -v "$t" >/dev/null || die "$t is needed"; done
   d=$(domain); target="https://nomad.$d/"; auth=http://127.0.0.1:$auth_port
+  vpn_reachable || die "$(vpn_hint)"
   if [ -n "${PROXY_USER:-}" ]; then user=$PROXY_USER; else command -v gum >/dev/null || die "gum is needed (or set PROXY_USER, PROXY_PASSWORD, PROXY_TOTP)"; user=$(gum input --placeholder "user"); fi
   if [ -n "${PROXY_PASSWORD:-}" ]; then pw=$PROXY_PASSWORD; else pw=$(gum input --password --placeholder "password"); fi
   [ -n "$user" ] && [ -n "$pw" ] || die "user and password are needed"
@@ -120,14 +135,18 @@ login() {
   body=$(U="$user" P="$pw" T="$target" jq -n '{username: env.U, password: env.P, keepMeLoggedIn: false, targetURL: env.T, requestMethod: "GET"}' \
     | curl -sS -D "$hdr" -H 'Content-Type: application/json' -d @- "$auth/api/firstfactor") || die "no answer from the proxy ($auth): task proxy:up"
   unset pw
-  [ "$(jq -r .status <<<"$body" 2>/dev/null)" = OK ] || die "first factor refused: $(jq -r '.message // .' <<<"$body" 2>/dev/null | head -c 200)"
+  code=$(http_code "$hdr")
+  case "$code" in 5??|"") die "no answer from authelia through the proxy (HTTP ${code:-none}): $(vpn_hint)";; esac
+  [ "$(jq -r .status <<<"$body" 2>/dev/null)" = OK ] || die "first factor refused (HTTP $code): $(jq -r '.message // .' <<<"$body" 2>/dev/null | head -c 200)"
   cookie=$(sed -nE 's/^[Ss]et-[Cc]ookie: authelia_session=([^;]+);.*/\1/p' "$hdr" | tail -1)
   [ -n "$cookie" ] || die "authelia sent no session cookie"
   if [ -n "${PROXY_TOTP:-}" ]; then code=$PROXY_TOTP; else code=$(gum input --placeholder "TOTP code" --char-limit 8); fi
   : > "$hdr"
   body=$(C="$code" T="$target" jq -n '{token: env.C, targetURL: env.T}' \
     | curl -sS -D "$hdr" -H 'Content-Type: application/json' -H "Cookie: authelia_session=$cookie" -d @- "$auth/api/secondfactor/totp") || die "no answer from the proxy"
-  [ "$(jq -r .status <<<"$body" 2>/dev/null)" = OK ] || die "second factor refused: $(jq -r '.message // .' <<<"$body" 2>/dev/null | head -c 200)"
+  code=$(http_code "$hdr")
+  case "$code" in 5??|"") die "no answer from authelia through the proxy (HTTP ${code:-none}): $(vpn_hint)";; esac
+  [ "$(jq -r .status <<<"$body" 2>/dev/null)" = OK ] || die "second factor refused (HTTP $code): $(jq -r '.message // .' <<<"$body" 2>/dev/null | head -c 200)"
   # authelia may hand out a new session id once the second factor is in
   fresh=$(sed -nE 's/^[Ss]et-[Cc]ookie: authelia_session=([^;]+);.*/\1/p' "$hdr" | tail -1)
   [ -z "$fresh" ] || cookie=$fresh
@@ -145,12 +164,16 @@ status() {
   case "$code" in
     200) echo "proxy: logged in (nomad on http://127.0.0.1:$nomad_port, consul on http://127.0.0.1:$consul_port)";;
     302|401|403) echo "proxy: running, but no valid session: task proxy:login" >&2; return 1;;
+    000|502|503|504) echo "proxy: running, but traefik is unreachable through it (HTTP $code): $(vpn_hint)" >&2; return 1;;
     *) echo "proxy: nomad answered $code through the proxy" >&2; return 1;;
   esac
 }
 
 case "${1:-}" in
-  up) render; dc up -d --force-recreate >/dev/null; echo "proxy up: nomad http://127.0.0.1:$nomad_port, consul http://127.0.0.1:$consul_port; now: task proxy:login";;
+  up)
+    render; dc up -d --force-recreate >/dev/null
+    echo "proxy up: nomad http://127.0.0.1:$nomad_port, consul http://127.0.0.1:$consul_port"
+    if vpn_reachable; then echo "now: task proxy:login"; else echo "proxy: WARNING: $(vpn_hint)" >&2; echo "the proxy is running, but login and the cli tools only work once the VPN is up" >&2; fi;;
   login) login;;
   down) [ -e "$dir/compose.yml" ] && dc down >/dev/null 2>&1 || true; rm -rf "$dir/session"; echo "proxy down, session forgotten";;
   status) status;;
