@@ -428,7 +428,7 @@ tasks:
       - base/scripts/upgrade.sh version
 
   upgrade:
-    desc: "Move the pinned platform to a tag/commit (shows the changelog, stages the pointer): task upgrade -- v1.0.3"  # x-release-version
+    desc: "Move the pinned platform to a tag/commit (shows the changelog, stages the pointer): task upgrade -- v1.0.4"  # x-release-version
     cmds:
       - base/scripts/upgrade.sh {{.CLI_ARGS}}
 

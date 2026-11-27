@@ -4,6 +4,8 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+## 1.0.4 (2026-11-27)
+
 - **Fix: Traefik could not get certificates from Let's Encrypt (`cluster_acme_ca: letsencrypt` / `letsencrypt-staging`).** Traefik's ACME client (lego) was started with
   `LEGO_CA_CERTIFICATES` (the cluster root, for step-ca) only, which replaces the system roots: the ACME directory of Let's Encrypt failed with `x509: certificate signed by unknown authority`
   and the ingress served Traefik's default certificate. The job now also sets `LEGO_CA_SYSTEM_CERT_POOL=true`. Redeploy (`task deploy:ansible`). Not tested.
