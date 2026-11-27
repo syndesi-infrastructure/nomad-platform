@@ -34,6 +34,7 @@ upstream() { echo "${PROXY_UPSTREAM:-$(tools 'cvar cluster_vpn_server_ip'):443}"
 vpn_reachable() {
   local up host port
   up=$(upstream); host=${up%:*}; port=${up##*:}
+  # shellcheck disable=SC2016 # $1 and $2 are the inner shell's
   [ -n "$host" ] && timeout 3 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$host" "$port" 2>/dev/null
 }
 vpn_hint() {
