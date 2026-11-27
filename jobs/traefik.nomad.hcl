@@ -726,11 +726,13 @@ EOT
         TPL_STEPCA_ACME_URL        = var.stepca_acme_url
         TPL_NTFY_PORT              = var.ntfy_port
         TPL_STEPCA_HOURS           = var.stepca_cert_hours
-        # lego (traefik's ACME client) trusts the cluster root in addition to the system roots: step-ca's own certificate is signed by it
-        LEGO_CA_CERTIFICATES = "/secrets/ca.pem"
-        TPL_ACME_SERVER      = var.acme_server
-        TPL_ACME_EMAIL       = var.acme_email
-        TLS_FINGERPRINT      = var.tls_fingerprint
+        # lego (traefik's ACME client) trusts the cluster root (step-ca's own certificate is signed by it) AND the system roots (Let's Encrypt):
+        # without LEGO_CA_SYSTEM_CERT_POOL lego trusts only LEGO_CA_CERTIFICATES and every public ACME CA fails with "unknown authority"
+        LEGO_CA_CERTIFICATES     = "/secrets/ca.pem"
+        LEGO_CA_SYSTEM_CERT_POOL = "true"
+        TPL_ACME_SERVER          = var.acme_server
+        TPL_ACME_EMAIL           = var.acme_email
+        TLS_FINGERPRINT          = var.tls_fingerprint
       }
 
       config {
