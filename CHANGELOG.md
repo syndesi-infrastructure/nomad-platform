@@ -4,6 +4,8 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+## 1.0.5 (2026-11-27)
+
 - **Fix: `task proxy:login` blamed the password when the VPN was down.** Without the VPN the local proxy cannot reach Traefik and answers `502` with an empty body, which `proxy.sh` reported as
   `first factor refused:` (nothing after it). `proxy up` now warns when the VPN is unreachable, `proxy login` checks it before asking for the password and TOTP code and treats a 5xx or empty reply
   from Authelia as "no answer" instead of a refused login, and `proxy status` says that Traefik is unreachable. All three print the hint `sudo wg-quick up wg-<cluster_name>`. A wrong password is still
