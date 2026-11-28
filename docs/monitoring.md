@@ -152,7 +152,7 @@ and Grafana's HTTP client drops `:443`. So Grafana calls `https://auth.<zone>/..
 answers that one name with `127.0.0.1`, the container's own loopback, where the Connect sidecar of the service `monitoring-grafana-mesh` listens on 443 (an upstream
 to the mesh service `authelia-internal-mesh`, mutual TLS; the port exists only in that allocation's network namespace). authelia-internal is a mesh service for this
 (the job `authelia-internal` has a bridge network and a sidecar; the published port 9092, which Traefik and the checks use, is unchanged). The intention
-`authelia-internal-mesh` lets only `monitoring-grafana-mesh` connect. Grafana verifies the certificate (`tls_client_ca` is the cluster root): authelia-internal's certificate is the node's own and carries the name `auth.<zone>`. The way is loopback and then the mesh with mutual TLS between the sidecars.
+`authelia-internal-mesh` lets only `monitoring-grafana-mesh` connect. Grafana verifies the certificate (`tls_client_ca` is the cluster root): authelia-internal's certificate is the node's own and carries the name `auth.<zone>`. The way is loopback and then the mesh with mutual TLS between the sidecars. Envoy is not root and the namespace of an allocation does not inherit the host's `net.ipv4.ip_unprivileged_port_start` (1024), so the sidecar task sets it to 443 in its `sidecar_task` config (a job that adds the same upstream on 443 needs the same line; without it Envoy logs `cannot bind '127.0.0.1:443': Permission denied` and the OpenID Connect login fails with "Failed to get token from provider").
 Trusting a forward-auth header instead would not do: any container reaches Grafana's published port.
 
 ## Security notes

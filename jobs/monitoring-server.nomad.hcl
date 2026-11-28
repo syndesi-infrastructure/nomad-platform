@@ -252,6 +252,12 @@ job "monitoring-server" {
           }
           config {
             runtime = "runc"
+            # envoy is not root and binds 127.0.0.1:443 for the upstream above: the namespace does not inherit the host's ip_unprivileged_port_start (1024 on the
+            # nodes, the host-wide setting of older versions is gone), so without this the listener is rejected ("cannot bind 127.0.0.1:443: Permission denied")
+            # and Grafana's token exchange fails ("Failed to get token from provider"). The value is for the namespace of this allocation only.
+            sysctl = {
+              "net.ipv4.ip_unprivileged_port_start" = "443"
+            }
           }
         }
       }

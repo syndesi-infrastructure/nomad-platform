@@ -4,6 +4,11 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+- **Fix: Grafana's login failed with "Login failed: Failed to get token from provider".** The Envoy sidecar `monitoring-grafana-mesh` (not root) could not bind the upstream
+  `127.0.0.1:443` to authelia-internal (`Permission denied`): the allocation's namespace has `ip_unprivileged_port_start` 1024, and the host-wide setting that used to cover it was
+  removed in 1.0.x (it only held until the next reboot, which is when it broke). The sidecar task now sets `net.ipv4.ip_unprivileged_port_start=443` in its own config (job
+  `monitoring-server`; applies to that allocation's namespace only). Rolls out with the next deploy; for a running cluster `task dev:job -- monitoring-server` is enough.
+
 ## 1.0.5 (2026-11-27)
 
 - **Fix: `task proxy:login` blamed the password when the VPN was down.** Without the VPN the local proxy cannot reach Traefik and answers `502` with an empty body, which `proxy.sh` reported as
