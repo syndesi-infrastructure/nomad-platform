@@ -4,6 +4,8 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+## 1.0.6 (2026-11-28)
+
 - **Fix: Grafana's login failed with "Login failed: Failed to get token from provider".** The Envoy sidecar `monitoring-grafana-mesh` (not root) could not bind the upstream
   `127.0.0.1:443` to authelia-internal (`Permission denied`): the allocation's namespace has `ip_unprivileged_port_start` 1024, and the host-wide setting that used to cover it was
   removed in 1.0.x (it only held until the next reboot, which is when it broke). The sidecar task now sets `net.ipv4.ip_unprivileged_port_start=443` in its own config (job
