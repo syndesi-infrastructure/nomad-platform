@@ -727,7 +727,9 @@ job "monitoring-server" {
           api_url = https://auth.${var.zone}/api/oidc/userinfo
           tls_client_ca = /secrets/ca.pem
           use_pkce = true
-          login_attribute_path = preferred_username
+          # not the bare preferred_username: Grafana's own emergency admin has the login "admin" (email admin@localhost), like the usual first user of authelia. The email
+          # differs, so Grafana does not link them, tries to create a second user "admin" and fails ("Login failed: User sync failed", log: "Failed to create user ... user not found")
+          login_attribute_path = join('-', ['sso', preferred_username])
           name_attribute_path = name
           email_attribute_path = email
           groups_attribute_path = groups

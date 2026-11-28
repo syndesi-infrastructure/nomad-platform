@@ -4,6 +4,11 @@ Notable changes per version. Older history is in git.
 
 ## Unreleased
 
+- **Fix: Grafana's login failed with "Login failed: User sync failed"** (after the fix below, the token exchange worked). Grafana's local emergency admin has the login `admin`
+  (email `admin@localhost`), and so has the usual first user of Authelia (email differs): Grafana does not link them, tries to create a second `admin` and fails. Single sign-on users now
+  get the login `sso-<preferred_username>` (`login_attribute_path`, job `monitoring-server`), so they never collide with a local user; existing databases need no change. Display
+  name, email and roles are unchanged. Rolls out with `task dev:job -- monitoring-server` or the next deploy. Verified on the test cluster with a full login (password + TOTP) as `admin`.
+
 ## 1.0.6 (2026-11-28)
 
 - **Fix: Grafana's login failed with "Login failed: Failed to get token from provider".** The Envoy sidecar `monitoring-grafana-mesh` (not root) could not bind the upstream

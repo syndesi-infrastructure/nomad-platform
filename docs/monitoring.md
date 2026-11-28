@@ -145,7 +145,7 @@ mobile app (server `https://ntfy.<domain>`). The user `alertmanager` can only pu
 
 Grafana sits behind authelia-internal (VPN + second factor) and logs in **with it** (OpenID Connect): the browser is sent to
 `auth.<zone>` and comes back as a Grafana user, `GrafanaAdmin` for the Authelia group `admin`, Viewer for everyone else. The emergency way in is Grafana's local
-user `admin` (`https://grafana.<zone>/login?disableAutoLogin=true`, password `cluster_monitoring_grafana_admin_password`).
+user `admin` (`https://grafana.<zone>/login?disableAutoLogin=true`, password `cluster_monitoring_grafana_admin_password`). Single sign-on users get the login `sso-<name>` (Authelia user `admin` becomes `sso-admin`), so that they can never collide with the local `admin`.
 
 How the server-side part (token, userinfo) reaches Authelia: Authelia builds its issuer from the `Host` header and answers 400 when it carries a port or is not its name,
 and Grafana's HTTP client drops `:443`. So Grafana calls `https://auth.<zone>/...`: the restricted resolver that containers use (dnsmasq of the node, role `cluster_dns`)
